@@ -85,12 +85,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QRadioButton" name="rbIcmp">
+         <property name="layoutDirection">
+          <enum>Qt::LayoutDirection::RightToLeft</enum>
+         </property>
+         <property name="text">
+          <string>Ping of Death</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QRadioButton" name="rbUDP">
          <property name="layoutDirection">
           <enum>Qt::LayoutDirection::RightToLeft</enum>
          </property>
          <property name="text">
-          <string>UDP Sync Flood</string>
+          <string>UDP Flooding</string>
          </property>
         </widget>
        </item>

