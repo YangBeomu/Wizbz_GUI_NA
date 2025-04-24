@@ -1,5 +1,5 @@
-#ifndef NETWORKCONTROLLER_H
-#define NETWORKCONTROLLER_H
+#ifndef PCAPCONTROLLER_H
+#define PCAPCONTROLLER_H
 
 #include <QObject>
 #include <QString>
@@ -28,7 +28,7 @@
 #include "../../include/tcphdr.hpp"
 
 
-class NetworkController : public QObject
+class PcapController : public QObject
 {
     Q_OBJECT
 
@@ -50,11 +50,15 @@ class NetworkController : public QObject
         u_char* buf;
     };
 
-    std::vector<pcap_t*> pcaps_{};
+    //std::vector<pcap_t*> pcaps_{};
+    pcap_t* pcap_;
     std::vector<InterfaceInfo> interfaceInfos_{};
     InterfaceInfo cInterfaceInfo_{};
     std::vector<RecvData> recvDatas_{};
 
+    void WarningMessage(const QString msg);
+
+protected:
     enum {
         STATUS_ERROR,
         STATUS_INIT,
@@ -68,36 +72,33 @@ class NetworkController : public QObject
     std::condition_variable cv_;
     int status_;
 
-    void RecvPacketThreadFunc();
+    virtual void RecvPacketThreadFunc() = 0;
     void OpenThread();
     void play();
     void pause();
     void end();
 
-    void WarningMessage(const QString msg);
-
-
     void GetInterfaceInfo();
-    bool OpenPcap(const int timeout = 1);
+    bool OpenPcap(QString& interface, const int timeout = 1);
 
-    Mac ResolveMac(const QString targetIP);
+    //Mac ResolveMac(const QString targetIP);
     bool ReadPacket(const QString& interface);
     std::vector<uint8_t*> GetPacket(const uint16_t etherType, const QString ip,
                                      const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
 
 public:
-    explicit NetworkController(QObject *parent = nullptr);
-    ~NetworkController();
+    explicit PcapController(QObject *parent = nullptr);
+    ~PcapController();
 
     std::vector<QString> GetInterfaces();
     bool SetCurrentInterface(const QString interface);
     QString GetCurrentInterface();
 
-    bool ArpSpoofing(const QString senderIP, const QString targetIP);
+    //bool ArpSpoofing(const QString senderIP, const QString targetIP);
 
     void Stop();
 
 signals:
 };
 
-#endif // NETWORKCONTROLLER_H
+#endif // PCAPCONTROLLER_H
