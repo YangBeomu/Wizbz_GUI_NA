@@ -12,6 +12,8 @@ struct Flow {
     Flow();
     Flow(const QString senderIP, const QString targetIP) { sip_ = senderIP; tip_ = targetIP; }
 
+    bool operator==(const Flow& f) { if(sip_ == f.sip_ && tip_ == f.tip_) return true; return false; }
+
 };
 
 #pragma pack(push, 1)
@@ -36,6 +38,9 @@ public:
     void Register(const QString senderIP, const QString targetIP);
     void Register(const Flow flow);
     void Register(const std::vector<Flow> flow);
+    void Delete(const QString senderIP, const QString targetIP);
+    void Delete(const Flow flow);
+    void Delete(const std::vector<Flow> flow);
 
     std::list<Flow> GetFlows();
 

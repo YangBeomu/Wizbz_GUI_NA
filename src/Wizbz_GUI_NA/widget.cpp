@@ -7,18 +7,18 @@ Widget::Widget(QWidget *parent)
 {
     ui->setupUi(this);
 
-    nc_ = new NetworkController;
+    asf_ = new ArpSpoofing;
     init();
 }
 
 Widget::~Widget()
 {
     delete ui;
-    delete(nc_);
+    delete(asf_);
 }
 
 void Widget::init() {
-    auto interfaceNames = nc_->GetInterfaces();
+    auto interfaceNames = asf_->GetInterfaces();
 
     for(auto name : interfaceNames)
         ui->cbInterface->addItem(name);
@@ -45,8 +45,36 @@ void Widget::on_pbAttack_clicked()
     auto targetIP = ui->leTargetIP->text();
 
     if(ui->rbARP->isChecked()) {
-        nc_->SetCurrentInterface(interfaceName);
-        nc_->ArpSpoofing(senderIP, targetIP);
+
+
+        if(asf_->GetCurrentInterface() != interfaceName)
+            asf_->SetCurrentInterface(interfaceName);
+
+        asf_->Register(senderIP, targetIP);
+
+        asf_->Run();
     }
+}
+
+
+void Widget::on_tbAdd_clicked()
+{
+    auto senderIP = ui->leSenderIP->text();
+    auto targetIP = ui->leTargetIP->text();
+
+    asf_->Register(senderIP, targetIP);
+
+    QString ret;
+
+
+    ret.append("Flow(" + senderIP + " , " + targetIP + ")");
+
+    ui->lvFlow->addItem(ret);
+}
+
+
+void Widget::on_tbRemove_clicked()
+{
+    ui->lvFlow->removeItemWidget(ui->lvFlow->currentItem());
 }
 

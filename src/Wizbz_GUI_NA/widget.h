@@ -3,8 +3,10 @@
 
 #include <QWidget>
 #include <QRegularExpression>
+#include <QList>
 
-#include "../../include/networkcontroller.h"
+//#include "../../include/pcapcontroller.h"
+#include "../../include/arpspoofing.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -16,7 +18,7 @@ class Widget : public QWidget
 {
     Q_OBJECT
 
-    NetworkController* nc_ = nullptr;
+    ArpSpoofing* asf_ = nullptr;
 
     void init();
 
@@ -27,6 +29,10 @@ public:
 private slots:
 
     void on_pbAttack_clicked();
+
+    void on_tbAdd_clicked();
+
+    void on_tbRemove_clicked();
 
 private:
     Ui::Widget *ui;

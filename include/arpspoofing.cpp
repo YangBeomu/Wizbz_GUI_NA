@@ -131,6 +131,26 @@ void ArpSpoofing::Register(const std::vector<Flow> flow) {
     }
 }
 
+void ArpSpoofing::Delete(const QString senderIP, const QString targetIP) {
+    unique_lock<mutex> t(mtx_);
+
+    flowList_.remove(Flow(senderIP, targetIP));
+}
+
+void ArpSpoofing::Delete(const Flow flow) {
+    unique_lock<mutex> t(mtx_);
+
+    flowList_.remove(flow);
+}
+
+void ArpSpoofing::Delete(const std::vector<Flow> flow) {
+    unique_lock<mutex> t(mtx_);
+
+    for(const Flow& f : flow) {
+        flowList_.remove(f);
+    }
+}
+
 list<Flow> ArpSpoofing::GetFlows() {
     unique_lock<mutex> t(mtx_);
     return flowList_;

@@ -12,20 +12,22 @@ LIBS += -lpcap
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    ../../include/arpspoofing.cpp \
     ../../include/ethhdr.cpp \
     ../../include/ip.cpp \
     ../../include/mac.cpp \
-    ../../include/networkcontroller.cpp \
+    ../../include/pcapcontroller.cpp \
     main.cpp \
     widget.cpp
 
 HEADERS += \
     ../../include/arphdr.hpp \
+    ../../include/arpspoofing.h \
     ../../include/ethhdr.h \
     ../../include/ip.h \
     ../../include/iphdr.hpp \
     ../../include/mac.h \
-    ../../include/networkcontroller.h \
+    ../../include/pcapcontroller.h \
     ../../include/tcphdr.hpp \
     widget.h
 
