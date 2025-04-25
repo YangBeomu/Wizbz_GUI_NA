@@ -11,6 +11,24 @@ Ip::Ip(const std::string r) {
 	ip_ = (a << 24) | (b << 16) | (c << 8) | d;
 }
 
+Ip::Ip(const QString r) {
+    QStringList parts = r.split(".");
+    if (parts.size() != Size) {
+        printf("Ip::Ip Failed to convert qstring");
+        return;
+    }
+
+    unsigned int a, b, c, d;
+
+    a = parts[0].toInt();
+    b = parts[1].toInt();
+    c = parts[2].toInt();
+    d = parts[3].toInt();
+
+    ip_ = (a << 24) | (b << 16) | (c << 8) | d;
+}
+
+
 Ip::operator std::string() const {
 	char buf[32]; // enough size
 	sprintf(buf, "%u.%u.%u.%u",
@@ -19,6 +37,17 @@ Ip::operator std::string() const {
 		(ip_ & 0x0000FF00) >> 8,
 		(ip_ & 0x000000FF));
 	return std::string(buf);
+}
+
+Ip::operator QString() const {
+    char buf[32]; // enough size
+    sprintf(buf, "%u.%u.%u.%u",
+            (ip_ & 0xFF000000) >> 24,
+            (ip_ & 0x00FF0000) >> 16,
+            (ip_ & 0x0000FF00) >> 8,
+            (ip_ & 0x000000FF));
+
+    return QString(buf);
 }
 
 #ifdef GTEST

@@ -32,33 +32,37 @@ class PcapController : public QObject
 {
     Q_OBJECT
 
-#pragma pack(push, 1)
-    struct EthArpPacket final {
-        EthHdr eth_;
-        ArpHdr arp_;
-    };
-#pragma pack(pop)
-
     struct InterfaceInfo final {
-        QString interfaceName_;
+        std::string interfaceName_;
         Mac mac_;
-
     };
 
     struct RecvData final {
         pcap_pkthdr* header{};
-        u_char* buf;
+        u_char* buf{};
+
+        bool empty() {
+            if(header == NULL && buf == NULL) return true;
+
+            return false;
+        }
     };
 
     //std::vector<pcap_t*> pcaps_{};
-    pcap_t* pcap_;
+    pcap_t* pcap_ = nullptr;
     std::vector<InterfaceInfo> interfaceInfos_{};
-    InterfaceInfo cInterfaceInfo_{};
-    std::vector<RecvData> recvDatas_{};
 
+    //std::vector<RecvData> recvDatas_{};
+    RecvData recvData_{};
+
+    void InitInterfaceInfo();
     void WarningMessage(const QString msg);
 
 protected:
+
+
+    InterfaceInfo cInterfaceInfo_{};
+
     enum {
         STATUS_ERROR,
         STATUS_INIT,
@@ -78,20 +82,23 @@ protected:
     void pause();
     void end();
 
-    void GetInterfaceInfo();
-    bool OpenPcap(QString& interface, const int timeout = 1);
-
+    bool OpenPcap(std::string interface, const int timeout = 1);
     //Mac ResolveMac(const QString targetIP);
-    bool ReadPacket(const QString& interface);
-    std::vector<uint8_t*> GetPacket(const uint16_t etherType, const QString ip,
-                                     const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
+    bool ReadPacket();
+    /*std::vector<uint8_t*> GetPacket(const uint16_t etherType, const QString ip,
+                                     const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);*/
+
+    bool SendPacket(uint8_t* pPacket, uint32_t size);
+
+    RecvData GetPacket(const uint16_t etherType, const QString ip,
+                       const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
 
 public:
     explicit PcapController(QObject *parent = nullptr);
     ~PcapController();
 
     std::vector<QString> GetInterfaces();
-    bool SetCurrentInterface(const QString interface);
+    bool SetCurrentInterface(const QString& interface);
     QString GetCurrentInterface();
 
     //bool ArpSpoofing(const QString senderIP, const QString targetIP);

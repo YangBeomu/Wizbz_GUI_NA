@@ -5,7 +5,7 @@ using namespace std;
 PcapController::PcapController(QObject *parent)
     : QObject{parent}
 {
-    GetInterfaceInfo();
+    InitInterfaceInfo();
     //if(!OpenPcap()) return;
 }
 
@@ -104,11 +104,16 @@ void PcapController::WarningMessage(const QString msg) {
 //     return true;
 // }
 
-bool PcapController::OpenPcap(QString& interface, int timeout) {
+bool PcapController::OpenPcap(string interface, int timeout) {
     try {
+        if(pcap_ != nullptr) {
+            pcap_close(pcap_);
+            pcap_ = nullptr;
+        }
+
         char errBuf[PCAP_ERRBUF_SIZE]{};
 
-        pcap_ = pcap_open_live(interface.toStdString().c_str(), BUFSIZ, 1, timeout, errBuf);
+        pcap_ = pcap_open_live(interface.c_str(), BUFSIZ, 1, timeout, errBuf);
         if(pcap_ == NULL) throw runtime_error("Failed to open pcap : " + string(errBuf));
     }catch(const exception& e) {
         cerr<<"OpenPcap : "<<e.what()<<endl;
@@ -118,7 +123,7 @@ bool PcapController::OpenPcap(QString& interface, int timeout) {
     return true;
 }
 
-void PcapController::GetInterfaceInfo() {
+void PcapController::InitInterfaceInfo() {
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     try {
@@ -193,8 +198,27 @@ void PcapController::GetInterfaceInfo() {
 //     return ret;
 // }
 
-bool PcapController::ReadPacket(const QString& interface) {
-    RecvData recvData{};
+// bool PcapController::ReadPacket(const QString& interface) {
+//     RecvData recvData{};
+
+//     // pcap_t* pcap = nullptr;
+
+//     // for(int i=0; i<interfaceInfos_.size(); i++)
+//     //     if(interfaceInfos_.at(i).interfaceName_ == interface) pcap = pcaps_.at(i);
+
+//     if(pcap_ == nullptr) return false;
+
+//     if(pcap_next_ex(pcap_, &recvData.header, (const uchar**)&recvData.buf) != 1)
+//         return false;
+
+//     unique_lock<mutex> t(mtx_);
+//     recvDatas_.push_back(recvData);
+
+//     return true;
+// }
+
+bool PcapController::ReadPacket() {
+    unique_lock<mutex> t(mtx_);
 
     // pcap_t* pcap = nullptr;
 
@@ -203,92 +227,156 @@ bool PcapController::ReadPacket(const QString& interface) {
 
     if(pcap_ == nullptr) return false;
 
-    if(pcap_next_ex(pcap_, &recvData.header, (const uchar**)&recvData.buf) != 1)
+    if(pcap_next_ex(pcap_, &recvData_.header, (const uchar**)&recvData_.buf) != 1)
         return false;
 
-    unique_lock<mutex> t(mtx_);
-    recvDatas_.push_back(recvData);
+
 
     return true;
 }
 
-vector<uint8_t*> PcapController::GetPacket(const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
-    vector<uint8_t*> packets;
-
+bool PcapController::SendPacket(uint8_t* pPacket, uint32_t size) {
     unique_lock<mutex> t(mtx_);
-    for(const auto& data : recvDatas_) {
-        //arp header size : 28
-        if(data.header->caplen < sizeof(EthHdr) + sizeof(IpHdr)) continue;
+    try {
+    if(pcap_ == nullptr) throw runtime_error("Failed to find pcap opended");
 
-        EthHdr* etherHeader = reinterpret_cast<EthHdr*>(data.buf);
-
-        if(etherHeader->type() != etherType) continue;
-
-        switch(etherHeader->type()) {
-        case EthHdr::Arp: {
-            packets.push_back(data.buf);
-            break;
-        }
-        case EthHdr::Ip4: {
-            IpHdr* ipHeader = reinterpret_cast<IpHdr*>(data.buf + sizeof(EthHdr));
-            if(ipHeader->sip().compare(ip.toStdString()) == 0 || ipHeader->dip().compare(ip.toStdString()) == 0) {
-                if(ipHeader->protocolId_ != type) continue;
-
-                switch(ipHeader->protocolId_) {
-                case IpHdr::PROTOCOL_ID_TYPE::IPv4: {
-                    packets.push_back(data.buf);
-                    break;
-                }
-                case IpHdr::PROTOCOL_ID_TYPE::ICMP: {
-                    packets.push_back(data.buf);
-                    break;
-                }
-                case IpHdr::PROTOCOL_ID_TYPE::TCP: {
-                    TcpHdr* tcpHeader = reinterpret_cast<TcpHdr*>(data.buf + sizeof(EthHdr) + ipHeader->len());
-                    if(port == tcpHeader->sPort() || port == tcpHeader->dPort())
-                        packets.push_back(data.buf);
-
-                    break;
-                }
-                defualt:
-                    break;
-                }
-            }
-            break;
-        }
-
-        default:
-            break;
-        }
+    if(pcap_sendpacket(pcap_, reinterpret_cast<u_char*>(pPacket), size) == -1)
+        throw runtime_error("Failed to send packet : " + string(pcap_geterr(pcap_)));
+    }catch(const exception& e) {
+        cerr<<"Failed to send packet : "<<e.what()<<endl;
+        return false;
     }
 
-    recvDatas_.clear();
-
-    return packets;
+    return true;
 }
 
+// vector<uint8_t*> PcapController::GetPacket(const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
+//     vector<uint8_t*> packets;
+
+//     unique_lock<mutex> t(mtx_);
+//     for(const auto& data : recvDatas_) {
+//         //arp header size : 28
+//         if(data.header->caplen < sizeof(EthHdr) + sizeof(IpHdr)) continue;
+
+//         EthHdr* etherHeader = reinterpret_cast<EthHdr*>(data.buf);
+
+//         if(etherHeader->type() != etherType) continue;
+
+//         switch(etherHeader->type()) {
+//         case EthHdr::Arp: {
+//             packets.push_back(data.buf);
+//             break;
+//         }
+//         case EthHdr::Ip4: {
+//             IpHdr* ipHeader = reinterpret_cast<IpHdr*>(data.buf + sizeof(EthHdr));
+//             if(ipHeader->sip().compare(ip.toStdString()) == 0 || ipHeader->dip().compare(ip.toStdString()) == 0) {
+//                 if(ipHeader->protocolId_ != type) continue;
+
+//                 switch(ipHeader->protocolId_) {
+//                 case IpHdr::PROTOCOL_ID_TYPE::IPv4: {
+//                     packets.push_back(data.buf);
+//                     break;
+//                 }
+//                 case IpHdr::PROTOCOL_ID_TYPE::ICMP: {
+//                     packets.push_back(data.buf);
+//                     break;
+//                 }
+//                 case IpHdr::PROTOCOL_ID_TYPE::TCP: {
+//                     TcpHdr* tcpHeader = reinterpret_cast<TcpHdr*>(data.buf + sizeof(EthHdr) + ipHeader->len());
+//                     if(port == tcpHeader->sPort() || port == tcpHeader->dPort())
+//                         packets.push_back(data.buf);
+
+//                     break;
+//                 }
+//                 defualt:
+//                     break;
+//                 }
+//             }
+//             break;
+//         }
+
+//         default:
+//             break;
+//         }
+//     }
+
+//     recvDatas_.clear();
+
+//     return packets;
+// }
+
+PcapController::RecvData PcapController::GetPacket(const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
+    unique_lock<mutex> t(mtx_);
+    RecvData data{};
+    t.unlock();
+
+    //arp header size : 28
+    if(recvData_.header->caplen < sizeof(EthHdr) + sizeof(IpHdr)) return data;
+
+    EthHdr* etherHeader = reinterpret_cast<EthHdr*>(recvData_.buf);
+
+    if(etherHeader->type() != etherType) return {};
+
+    switch(etherHeader->type()) {
+    case EthHdr::Arp: {
+        data = recvData_;
+        break;
+    }
+    case EthHdr::Ip4: {
+        IpHdr* ipHeader = reinterpret_cast<IpHdr*>(recvData_.buf + sizeof(EthHdr));
+        if(ipHeader->sip().compare(ip.toStdString()) == 0 || ipHeader->dip().compare(ip.toStdString()) == 0) {
+            if(ipHeader->protocolId_ != type) return {};
+
+            switch(ipHeader->protocolId_) {
+            case IpHdr::PROTOCOL_ID_TYPE::IPv4: {
+                data = recvData_;
+                break;
+            }
+            case IpHdr::PROTOCOL_ID_TYPE::ICMP: {
+                data = recvData_;
+                break;
+            }
+            case IpHdr::PROTOCOL_ID_TYPE::TCP: {
+                TcpHdr* tcpHeader = reinterpret_cast<TcpHdr*>(recvData_.buf + sizeof(EthHdr) + ipHeader->len());
+                if(port == tcpHeader->sPort() || port == tcpHeader->dPort())
+                    data = recvData_;
+                break;
+            }
+            defualt:
+                break;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return data;
+}
 
 //public
 vector<QString> PcapController::GetInterfaces() {
     vector<QString> ret;
 
     for(const auto& info : interfaceInfos_)
-        ret.push_back(info.interfaceName_);
+        ret.push_back(info.interfaceName_.c_str());
 
     return ret;
 }
 
 QString PcapController::GetCurrentInterface() {
     unique_lock<mutex> t(mtx_);
-    return cInterfaceInfo_.interfaceName_;
+    return QString(cInterfaceInfo_.interfaceName_.c_str());
 }
 
-bool PcapController::SetCurrentInterface(const QString interface) {
+bool PcapController::SetCurrentInterface(const QString& interface) {
     unique_lock<mutex> t(mtx_);
 
     for(const auto& info : interfaceInfos_) {
         if(info.interfaceName_ == interface) {
             cInterfaceInfo_ = info;
+            OpenPcap(interface.toStdString());
             return true;
         }
     }

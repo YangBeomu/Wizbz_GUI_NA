@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 #include <cstdint>
 #include <string>
 #include <uchar.h>
@@ -19,7 +20,7 @@ struct Ip final {
 	operator uint32_t() const { return ip_; } // default
     explicit operator std::string() const;
     //beomu
-    //explicit operator QString() const;
+    explicit operator QString() const;
 
 	// comparison operator
 	bool operator == (const Ip& r) const { return ip_ == r.ip_; }

