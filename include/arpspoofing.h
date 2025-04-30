@@ -27,13 +27,16 @@ class ArpSpoofing final : public PcapController
 {
     void RecvPacketThreadFunc() override;
 
-    Mac ResolveMac(const std::string targetIP);
+    void ResolveMac(const std::string targetIP);
 
     std::list<Flow> flowList_;
+    std::map<Ip, Mac> arpTable_;
     bool Infect();
+    bool Recover();
 
 public:
     ArpSpoofing();
+    ~ArpSpoofing();
 
     void Register(const QString senderIP, const QString targetIP);
     void Register(const Flow flow);

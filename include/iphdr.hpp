@@ -39,22 +39,22 @@ typedef struct IP_HEADER {
     uint8_t flags() { return (ntohs(flags_fragOffset_) & 0b1110000000000000) >> 13; }
     uint16_t fragOffset() { return ntohs(flags_fragOffset_) & 0b0001111111111111; }
 
-    // std::string sip() {
-    //     char buf[INET_ADDRSTRLEN]{};
+    std::string sip() {
+        char buf[INET_ADDRSTRLEN]{};
 
-    //     inet_ntop(AF_INET, &sIp_, buf, sizeof(buf));
-    //     return std::string(buf);
-    // }
+        inet_ntop(AF_INET, &sip_, buf, sizeof(buf));
+        return std::string(buf);
+    }
 
-    // std::string dip() {
-    //     char buf[INET_ADDRSTRLEN]{};
+    std::string dip() {
+        char buf[INET_ADDRSTRLEN]{};
 
-    //     inet_ntop(AF_INET, &dIp_, buf, sizeof(buf));
-    //     return std::string(buf);
-    // }
+        inet_ntop(AF_INET, &dip_, buf, sizeof(buf));
+        return std::string(buf);
+    }
 
-    std::string sip() { return std::string(sip_); }
-    std::string dip() {return std::string(dip_); }
+    //std::string sip() { return std::string(ntohl(sip_)); }
+    //std::string dip() {return std::string(ntohl(dip_)); }
 
 }IpHdr;
 typedef IpHdr* PIpHdr;

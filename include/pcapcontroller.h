@@ -31,12 +31,7 @@
 class PcapController : public QObject
 {
     Q_OBJECT
-
-    struct InterfaceInfo final {
-        std::string interfaceName_;
-        Mac mac_;
-    };
-
+protected:
     struct RecvData final {
         pcap_pkthdr* header{};
         u_char* buf{};
@@ -47,6 +42,14 @@ class PcapController : public QObject
             return false;
         }
     };
+
+private:
+    struct InterfaceInfo final {
+        std::string interfaceName_;
+        Mac mac_;
+    };
+
+
 
     //std::vector<pcap_t*> pcaps_{};
     pcap_t* pcap_ = nullptr;
@@ -59,8 +62,6 @@ class PcapController : public QObject
     void WarningMessage(const QString msg);
 
 protected:
-
-
     InterfaceInfo cInterfaceInfo_{};
 
     enum {
@@ -74,7 +75,7 @@ protected:
     std::thread hPThread_;
     std::mutex mtx_;
     std::condition_variable cv_;
-    int status_;
+    int status_ = STATUS_INIT;
 
     virtual void RecvPacketThreadFunc() = 0;
     void OpenThread();
@@ -90,7 +91,7 @@ protected:
 
     bool SendPacket(uint8_t* pPacket, uint32_t size);
 
-    RecvData GetPacket(const uint16_t etherType, const QString ip,
+    RecvData GetPacket(const uint16_t etherType, const std::string ip,
                        const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port);
 
 public:

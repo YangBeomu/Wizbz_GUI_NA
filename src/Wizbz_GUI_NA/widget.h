@@ -34,6 +34,8 @@ private slots:
 
     void on_tbRemove_clicked();
 
+    void on_pbStop_clicked();
+
 private:
     Ui::Widget *ui;
 };

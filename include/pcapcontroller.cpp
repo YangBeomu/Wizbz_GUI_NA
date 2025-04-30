@@ -218,7 +218,7 @@ void PcapController::InitInterfaceInfo() {
 // }
 
 bool PcapController::ReadPacket() {
-    unique_lock<mutex> t(mtx_);
+    //unique_lock<mutex> t(mtx_);
 
     // pcap_t* pcap = nullptr;
 
@@ -236,7 +236,7 @@ bool PcapController::ReadPacket() {
 }
 
 bool PcapController::SendPacket(uint8_t* pPacket, uint32_t size) {
-    unique_lock<mutex> t(mtx_);
+    //unique_lock<mutex> t(mtx_);
     try {
     if(pcap_ == nullptr) throw runtime_error("Failed to find pcap opended");
 
@@ -305,10 +305,9 @@ bool PcapController::SendPacket(uint8_t* pPacket, uint32_t size) {
 //     return packets;
 // }
 
-PcapController::RecvData PcapController::GetPacket(const uint16_t etherType, const QString ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
-    unique_lock<mutex> t(mtx_);
+PcapController::RecvData PcapController::GetPacket(const uint16_t etherType, const string ip, const IpHdr::PROTOCOL_ID_TYPE type, const uint16_t port) {
+    //unique_lock<mutex> t(mtx_);
     RecvData data{};
-    t.unlock();
 
     //arp header size : 28
     if(recvData_.header->caplen < sizeof(EthHdr) + sizeof(IpHdr)) return data;
@@ -324,7 +323,9 @@ PcapController::RecvData PcapController::GetPacket(const uint16_t etherType, con
     }
     case EthHdr::Ip4: {
         IpHdr* ipHeader = reinterpret_cast<IpHdr*>(recvData_.buf + sizeof(EthHdr));
-        if(ipHeader->sip().compare(ip.toStdString()) == 0 || ipHeader->dip().compare(ip.toStdString()) == 0) {
+        //Ip struct compare
+
+        if(ipHeader->sip().compare(ip) == 0 || ipHeader->dip().compare(ip) == 0) {
             if(ipHeader->protocolId_ != type) return {};
 
             switch(ipHeader->protocolId_) {

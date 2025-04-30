@@ -41,16 +41,10 @@ void Widget::init() {
 void Widget::on_pbAttack_clicked()
 {
     auto interfaceName = ui->cbInterface->currentText();
-    auto senderIP = ui->leSenderIP->text();
-    auto targetIP = ui->leTargetIP->text();
 
     if(ui->rbARP->isChecked()) {
-
-
         if(asf_->GetCurrentInterface() != interfaceName)
             asf_->SetCurrentInterface(interfaceName);
-
-        asf_->Register(senderIP, targetIP);
 
         asf_->Run();
     }
@@ -67,7 +61,8 @@ void Widget::on_tbAdd_clicked()
     QString ret;
 
 
-    ret.append("Flow(" + senderIP + " , " + targetIP + ")");
+    //ret.append("Flow(" + senderIP + " , " + targetIP + ")");
+    ret.append(senderIP + " , " + targetIP);
 
     ui->lvFlow->addItem(ret);
 }
@@ -75,6 +70,17 @@ void Widget::on_tbAdd_clicked()
 
 void Widget::on_tbRemove_clicked()
 {
-    ui->lvFlow->removeItemWidget(ui->lvFlow->currentItem());
+    auto cItem = ui->lvFlow->currentItem();
+    auto itemList = cItem->text().split(" , ");
+
+    asf_->Delete(itemList[0], itemList[1]);
+
+    delete(cItem);
+}
+
+
+void Widget::on_pbStop_clicked()
+{
+    asf_->Stop();
 }
 

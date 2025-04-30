@@ -92,7 +92,10 @@
       <widget class="QListWidget" name="lvFlow">
        <item>
         <property name="text">
-         <string>Flow (SenderIP, TargetIP)</string>
+         <string notr="true">Flow (SenderIP, TargetIP)</string>
+        </property>
+        <property name="flags">
+         <set>NoItemFlags</set>
         </property>
        </item>
       </widget>
