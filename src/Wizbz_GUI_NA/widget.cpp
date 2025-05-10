@@ -7,18 +7,18 @@ Widget::Widget(QWidget *parent)
 {
     ui->setupUi(this);
 
-    asf_ = new ArpSpoofing;
+    networkController_ = new ArpSpoofing;
     init();
 }
 
 Widget::~Widget()
 {
     delete ui;
-    delete(asf_);
+    delete(networkController_);
 }
 
 void Widget::init() {
-    auto interfaceNames = asf_->GetInterfaces();
+    auto interfaceNames = networkController_->GetInterfaces();
 
     for(auto name : interfaceNames)
         ui->cbInterface->addItem(name);
@@ -35,19 +35,18 @@ void Widget::init() {
 
     ui->rbARP->setChecked(true);
 
+    if(networkController_->GetCurrentInterface().isEmpty()) {
+        ui->tbAdd->setEnabled(false);
+        ui->tbRemove->setEnabled(false);
+    }
+
 }
 
 
 void Widget::on_pbAttack_clicked()
 {
-    auto interfaceName = ui->cbInterface->currentText();
-
-    if(ui->rbARP->isChecked()) {
-        if(asf_->GetCurrentInterface() != interfaceName)
-            asf_->SetCurrentInterface(interfaceName);
-
-        asf_->Run();
-    }
+    if(ui->rbARP->isChecked())
+        reinterpret_cast<ArpSpoofing*>(networkController_)->Run();
 }
 
 
@@ -56,7 +55,7 @@ void Widget::on_tbAdd_clicked()
     auto senderIP = ui->leSenderIP->text();
     auto targetIP = ui->leTargetIP->text();
 
-    asf_->Register(senderIP, targetIP);
+    reinterpret_cast<ArpSpoofing*>(networkController_)->Register(senderIP, targetIP);
 
     QString ret;
 
@@ -73,7 +72,7 @@ void Widget::on_tbRemove_clicked()
     auto cItem = ui->lvFlow->currentItem();
     auto itemList = cItem->text().split(" , ");
 
-    asf_->Delete(itemList[0], itemList[1]);
+    reinterpret_cast<ArpSpoofing*>(networkController_)->Delete(itemList[0], itemList[1]);
 
     delete(cItem);
 }
@@ -81,6 +80,16 @@ void Widget::on_tbRemove_clicked()
 
 void Widget::on_pbStop_clicked()
 {
-    asf_->Stop();
+    networkController_->Stop();
+}
+
+
+void Widget::on_pbInterfaceAply_clicked()
+{
+    if(networkController_->SetCurrentInterface(ui->cbInterface->currentText())) {
+        networkController_->SetFilter("not host 192.168.0.100");
+        ui->tbAdd->setEnabled(!ui->tbAdd->isEnabled());
+        ui->tbRemove->setEnabled(!ui->tbRemove->isEnabled());
+    }
 }
 

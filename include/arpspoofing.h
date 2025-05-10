@@ -2,6 +2,8 @@
 #define ARPSPOOFING_H
 
 #include <list>
+#include <cstdlib>
+#include <chrono>
 
 #include "pcapcontroller.h"
 
@@ -25,14 +27,46 @@ struct EthArpPacket final {
 
 class ArpSpoofing final : public PcapController
 {
+    struct JumboFramePacket {
+        std::shared_ptr<uint8_t[]> buf_{};
+        uint32_t size_{};
+    };
+
+    enum JumboFrameMethod{
+        IpFramgent = 0,
+        TCPSegment,
+    };
+
+    int MAX_MTU = 1500;
+    int MAX_MSS = 1400;
+
     void RecvPacketThreadFunc() override;
 
-    void ResolveMac(const std::string targetIP);
+    Mac ResolveMac(const Ip& targetIP);
 
     std::list<Flow> flowList_;
     std::map<Ip, Mac> arpTable_;
-    bool Infect();
-    bool Recover();
+
+    void WarningMessage(const std::string& msg);
+    void ErrorMessage(const std::string& msg);
+
+    bool RegistgerArpTable(const Ip& ip);
+
+    uint16_t MakeWord(const uint8_t& a, const uint8_t& b);
+
+    void SetIpChecksum(PIpHdr ipHeader);
+    void SetTcpChecksum(const uint16_t payloadLen, const PIpHdr ipHeader, PTcpHdr tcpHeader);
+    std::vector<JumboFramePacket> JumboFrameProcessingWithIpFragment(const Packet& jPacket);
+    std::vector<JumboFramePacket> JumboFrameProcessingWithTcpSegment(const Packet& jPacket);
+    std::vector<JumboFramePacket> GetJumboFramePackets(const Packet& jPacket, JumboFrameMethod method = IpFramgent);
+
+    EthArpPacket MakeEthArpPacket(const Mac& ethSmac, const Mac& ethDmac, const Mac& arpSmac, const Mac& arpTmac, const Ip& arpSip, const Ip& arpTip, const ArpHdr::OpCodeType opCode);
+
+
+    bool Infect(const Mac& targetMac, const Ip& senderIP, const Ip& targetIP, const ArpHdr::OpCodeType opCode = ArpHdr::OpCodeType::Arp_Reply);
+    bool Recover(const Mac& senderMac, const Mac& targetMac, const Ip& senderIP, const Ip& targetIP, const ArpHdr::OpCodeType opCode = ArpHdr::OpCodeType::Arp_Reply);
+    void Relay(Packet& rPacket);
+
 
 public:
     ArpSpoofing();
@@ -47,6 +81,7 @@ public:
 
     std::list<Flow> GetFlows();
 
+    void Stop() override;
     void Run();
 };
 

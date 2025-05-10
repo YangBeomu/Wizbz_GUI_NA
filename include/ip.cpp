@@ -1,7 +1,7 @@
 #include "ip.h"
 #include <cstdio>
 
-Ip::Ip(const std::string r) {
+Ip::Ip(const std::string& r) {
 	unsigned int a, b, c, d;
 	int res = sscanf(r.c_str(), "%u.%u.%u.%u", &a, &b, &c, &d);
 	if (res != Size) {
@@ -27,7 +27,6 @@ Ip::Ip(const QString r) {
 
     ip_ = (a << 24) | (b << 16) | (c << 8) | d;
 }
-
 
 Ip::operator std::string() const {
 	char buf[32]; // enough size

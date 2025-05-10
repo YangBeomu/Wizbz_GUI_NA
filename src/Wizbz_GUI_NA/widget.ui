@@ -28,6 +28,13 @@
        <item>
         <widget class="QComboBox" name="cbInterface"/>
        </item>
+       <item>
+        <widget class="QPushButton" name="pbInterfaceAply">
+         <property name="text">
+          <string>Aply</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>

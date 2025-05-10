@@ -15,12 +15,19 @@ typedef struct IP_HEADER {
         IPv4,
         ST,
         TCP,
+        UDP = 17,
+    };
+
+    enum IP_FLAGS_TYPE {
+        RESORVED = 0,
+        DF = (1<<14),
+        MF = (1<<13)
     };
 
     uint8_t version_headerLen_;
     uint8_t TOS_;
     uint16_t totalPacketLen_;
-    uint16_t id;
+    uint16_t id_;
 
     uint16_t flags_fragOffset_;
 
@@ -57,5 +64,5 @@ typedef struct IP_HEADER {
     //std::string dip() {return std::string(ntohl(dip_)); }
 
 }IpHdr;
-typedef IpHdr* PIpHdr;
+typedef IpHdr *PIpHdr;
 #pragma pack(pop)

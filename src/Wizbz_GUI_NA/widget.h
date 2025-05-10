@@ -18,7 +18,7 @@ class Widget : public QWidget
 {
     Q_OBJECT
 
-    ArpSpoofing* asf_ = nullptr;
+    PcapController* networkController_ = nullptr;
 
     void init();
 
@@ -35,6 +35,8 @@ private slots:
     void on_tbRemove_clicked();
 
     void on_pbStop_clicked();
+
+    void on_pbInterfaceAply_clicked();
 
 private:
     Ui::Widget *ui;
